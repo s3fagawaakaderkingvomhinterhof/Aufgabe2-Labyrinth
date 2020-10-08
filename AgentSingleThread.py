@@ -156,4 +156,5 @@ class AgentSingleThread:
             ele = shortest_path.pop(0)
             if ele not in result:
                 result.append(ele)
-        print(result)
+        # print('route:',result)
+        return result

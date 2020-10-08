@@ -4,8 +4,9 @@ import wx.grid as gridlib
 
 from Labyrinth import *
 from AgentSingleThread import *
+from AgentMultiThread import *
 
-cols = 5
+cols = 3
 rows = 7
 
 
@@ -17,16 +18,16 @@ class GridFrame(wx.Frame):
         wx.Frame.__init__(self, parent, title='Aufgabe-2: Labyrinth')
         self.string_start = 'Start'
         self.string_end = 'End'
-        self.string_wall = 'Wall'
-        self.rows = rows  # 5                                                                          # y-dimension of maze
-        self.columns = cols  # 7                                                                          # x-dimension of maze
+        self.string_wall = ' '
+        self.rows = rows  # 5                                                                      # y-dimension of maze
+        self.columns = cols  # 7                                                                   # x-dimension of maze
         rows_with_borders = self.rows + 2  # y-dimension with borders
         columns_with_borders = self.columns + 2  # x-dimension with borders
         self.edge_length = 40  # length of edge from square
 
         self.click_counter = 0
 
-        self.start_pos = [-1, -1]  # start position[x-coord, y-coord]
+        self.start_pos = [-1, -1]  # start position[x-coord, y-coord] in GUI
         self.dest_pos = [-1, -1]  # destination position
 
         self.grid = wx.grid.Grid(self, -1)  # create grid object
@@ -39,7 +40,9 @@ class GridFrame(wx.Frame):
         self.labyrinth_model = labyrinth_obj
         labyrinth_obj.print_labyrinth()
 
-        agent_obj = AgentSingleThread(labyrinth_obj.get_data_model(), [0, 0], 0)
+        # agent_obj = AgentSingleThread(labyrinth_obj.get_data_model(), [0, 0], 0)
+        # self.agent = agent_obj
+        agent_obj = AgentMultiThread(labyrinth_obj, [1, 1], [])
         self.agent = agent_obj
 
         for i in range(rows_with_borders):  # set pixel size for rows
@@ -60,7 +63,7 @@ class GridFrame(wx.Frame):
         self.grid.SetCellValue(0, 0, 'reset')
         self.grid.SetCellTextColour(0, 0, wx.RED)
         self.grid.SetReadOnly(0, 2)
-        self.grid.SetCellValue(0, 2, 'solve_single_thread')
+        self.grid.SetCellValue(0, 2, 'solve')
         self.grid.SetCellTextColour(0, 2, wx.RED)
 
         self.grid.Bind(gridlib.EVT_GRID_CELL_LEFT_CLICK, self.single_left_click)
@@ -76,12 +79,22 @@ class GridFrame(wx.Frame):
     ##############
     def single_left_click(self, event):
         self.click_counter += 1
-        print('click single')
+        print('single left click')
         if event.GetCol() == 2 and event.GetRow() == 0:
-            print('solve_single_thread')
-            # self.agent.agent_clear()
-            self.agent.solve_single_thread()
-            self.agent.build_route_to_end()
+            print('solve')
+            self.agent.solve_with_visitorlist()
+
+            path_to_destination = self.agent.labyrinth_object.get_route()
+
+            print('path length:', len(path_to_destination))
+
+            print(path_to_destination)
+            while len(path_to_destination) > 0:
+                print('coloring')
+                pos = path_to_destination.pop(0)
+                self.grid.SetCellBackgroundColour(pos[1], pos[0], wx.YELLOW)
+                self.grid.ForceRefresh()
+
             return
         if self.click_counter % 2 == 1:
             if event.GetCol() == 0 and event.GetRow() == 0:
@@ -99,6 +112,7 @@ class GridFrame(wx.Frame):
                                                       wx.GREEN)  # set start for first click
                     self.grid.SetCellValue(self.start_pos[1], self.start_pos[0], self.string_start)
                     self.agent.set_start(self.start_pos[0], self.start_pos[1])  # 1.: x-coord
+                    print('start:', self.agent.current_pos)
                     self.grid.ForceRefresh()
                 else:
                     print('go 1. else')
@@ -115,7 +129,7 @@ class GridFrame(wx.Frame):
                 if self.start_pos[1] > 0 and self.start_pos[0] > 0 \
                         and self.start_pos[1] < self.rows + 1 and self.start_pos[0] < self.columns + 2:
                     self.grid.SetCellBackgroundColour(self.start_pos[1], self.start_pos[0],
-                                                      wx.GREEN)  # set from 2nd click and so on
+                                                      wx.GREEN)  # set start from 2nd click and so on
                     self.grid.SetCellValue(self.start_pos[1], self.start_pos[0], self.string_start)
                     self.agent.set_start(self.start_pos[0], self.start_pos[1])
                     self.grid.ForceRefresh()
@@ -182,13 +196,13 @@ class GridFrame(wx.Frame):
             if self.grid.GetCellValue(current_pos[1], current_pos[0]) == '':
                 self.grid.SetCellBackgroundColour(current_pos[1], current_pos[0], wx.LIGHT_GREY)
                 self.grid.SetCellValue(current_pos[1], current_pos[0], self.string_wall)
-                self.labyrinth_model.toggle_wall(current_pos[0], current_pos[1])
-                self.labyrinth_model.print_labyrinth()
+                self.agent.labyrinth_object.toggle_wall(current_pos[0], current_pos[1])
+                self.agent.labyrinth_object.print_labyrinth()
             else:
                 self.grid.SetCellBackgroundColour(current_pos[1], current_pos[0], wx.WHITE)
                 self.grid.SetCellValue(current_pos[1], current_pos[0], '')
-                self.labyrinth_model.toggle_wall(current_pos[0], current_pos[1])
-                self.labyrinth_model.print_labyrinth()
+                self.agent.labyrinth_object.toggle_wall(current_pos[0], current_pos[1])
+                self.agent.labyrinth_object.print_labyrinth()
         event.Skip()
 
     def clear_labyrinth(self):
@@ -216,6 +230,6 @@ if __name__ == '__main__':
         app.MainLoop()
     else:
         if cols < 2 or rows < 2:
-            print('2 cols x 2 rows minumum')
+            print('2 cols x 2 rows minimum')
         else:
             print('20 cols and 20 rows are maximum')

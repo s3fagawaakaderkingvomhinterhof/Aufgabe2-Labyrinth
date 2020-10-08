@@ -1,3 +1,4 @@
+import threading
 
 
 class Labyrinth:
@@ -9,6 +10,9 @@ class Labyrinth:
         self.rows_with_borders = rows + 2
         self.labyrinth = self.create_data_model()
         self.visited = []  # global member for threading
+        self.solved = False  # for printing only once
+        self.lock = threading.Lock()
+        self.route = []
 
     def get_labyrinth_object(self):
         return self
@@ -52,15 +56,21 @@ class Labyrinth:
         elif self.is_wall(x, y):
             self.undo_wall(x, y)
 
-    def get_field_value(self, x, y):
-        return self.labyrinth[x][y]
-
-    def set_field_value(self, x, y, value):
-        self.labyrinth[y][x] = value  # important for agent
+    def get_route(self):
+        return self.route
 
     ##############################
     #  functions for threading   #
     ##############################
+
+    def get_field_value(self, x, y):  # maybe alternative to the visited list
+        return self.labyrinth[x][y]
+
+    def set_field_value(self, x, y, value):
+        self.labyrinth[y][x] = value
+
+    def is_current_pos_visited(self, start_pos, current_pos):  # if not start and more than 0 coord is visited
+        return (current_pos != start_pos) and (self.labyrinth[current_pos[1]][current_pos[0]] > 0)
 
     def append_position_to_visited_list(self, pos):
         if not self.is_position_in_visited_list(pos):
@@ -71,3 +81,23 @@ class Labyrinth:
 
     def is_position_in_visited_list(self, pos):
         return pos in self.visited
+
+    def set_route(self, route):
+        self.route = route
+
+    def get_solved(self):
+        try:
+            self.lock.acquire(blocking=True)
+            return self.solved
+        finally:
+            self.lock.release()
+
+    def print_destination(self, pos):
+        try:
+            self.lock.acquire(blocking=True)
+            if not self.solved:
+                # self.route = pos
+                print('Labyrinth: found destination:', pos)
+                self.solved = True
+        finally:
+            self.lock.release()
